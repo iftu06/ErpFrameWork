@@ -14,7 +14,7 @@ import java.util.List;
 /**
  * Created by Divineit-Iftekher on 11/25/2017.
  */
-public class QueryBuilderImpl implements QueryBuilder{
+public class QueryBuilderImpl implements QueryBuilder {
 
     @PersistenceContext
     private EntityManager emt;
@@ -54,11 +54,12 @@ public class QueryBuilderImpl implements QueryBuilder{
         return null;
     }
 
-    public void preparePredicateList(SearchNode searchNode, Root root, Path path) {
+    public void preparePredicateList(SearchNode searchNode, Root root, Path path, Join uJoin) {
         if (path == null) {
             path = root;
         }
 
+        int flag = 0;
 
         List<SearchProperty> searchProperties = searchNode.getSearchProperties();
         for (SearchProperty searchProperty : searchProperties) {
@@ -71,11 +72,33 @@ public class QueryBuilderImpl implements QueryBuilder{
                 predicates.add(this.cb.lessThanOrEqualTo(path.get(searchProperty.getFieldName()), clazzz.cast(searchProperty.getValue())));
             }
 
+            if (!selections.contains(path.get(searchProperty.getFieldName()))) {
+                selections.add(path.get(searchProperty.getFieldName()));
+            }
+
         }
+
+
         List<SearchNode> childs = searchNode.getChildNodes();
+
+        if (flag == 0) {
+            for (SearchNode child : childs) {
+                Join cJoin = root.join(child.getNodeName());
+                child.setJoin(cJoin);
+            }
+        }
+
+        flag++;
+
         for (SearchNode child : childs) {
-            Join j = root.join(child.getNodeName());
-            preparePredicateList(child, root,j);
+            Join sJoin = null;
+            if (child.getJoin() == null) {
+                sJoin = uJoin.join(child.getNodeName());
+                child.setJoin(sJoin);
+            } else {
+                sJoin = child.getJoin();
+            }
+            preparePredicateList(child, root, sJoin, sJoin);
         }
 
 
@@ -93,20 +116,7 @@ public class QueryBuilderImpl implements QueryBuilder{
         List<SearchNode> childs = searchNode.getChildNodes();
         for (SearchNode child : childs) {
             Path childPath = path.get(child.nodeName);
-            preparePredicateList(child, root, childPath);
-        }
-    }
-
-
-    public void prepareJoin(SearchNode searchNode, Root root, Join join) {
-
-
-        List<SearchNode> childs = searchNode.getChildNodes();
-        for (SearchNode child : childs) {
-            if(join == null) {
-                join = root.join(child.nodeName);
-            }
-            preparePredicateList(child, root, join);
+            //preparePredicateList(child, root, childPath);
         }
     }
 

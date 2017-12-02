@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import javax.persistence.criteria.Join;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,6 +10,7 @@ import java.util.List;
 public class SearchNode {
 
     String nodeName;
+    public Join join;
     List<SearchNode> childNodes = new ArrayList<>();
     List<SearchProperty> searchProperties = new ArrayList();
 
@@ -38,5 +40,13 @@ public class SearchNode {
 
     public void setSearchProperties(List<SearchProperty> searchProperties) {
         this.searchProperties = searchProperties;
+    }
+
+    public Join getJoin() {
+        return join;
+    }
+
+    public void setJoin(Join join) {
+        this.join = join;
     }
 }
