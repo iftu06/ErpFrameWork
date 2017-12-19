@@ -2,22 +2,23 @@ package com.example.demo.service;
 
 import org.hibernate.Criteria;
 import org.hibernate.Session;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
 import javax.persistence.Tuple;
 import javax.persistence.criteria.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by Divineit-Iftekher on 11/25/2017.
  */
+@Component
 public class QueryBuilderImpl implements QueryBuilder {
 
     @PersistenceContext
-    private EntityManager emt;
+    private EntityManager em;
 
     CriteriaBuilder cb;
 
@@ -27,31 +28,38 @@ public class QueryBuilderImpl implements QueryBuilder {
 
     CriteriaQuery qt;
 
+    @Autowired
+    ProcessMap processMap ;
+
     List<Predicate> predicates = new ArrayList<>();
     List<Selection<?>> selections = new ArrayList<>();
 
-    QueryBuilderImpl() {
-        cb = emt.getCriteriaBuilder();
+    public QueryBuilderImpl() {
+
 
     }
 
     public Criteria getCriteria(Class modelClass) {
-        return emt.unwrap(Session.class).createCriteria(modelClass);
+        return em.unwrap(Session.class).createCriteria(modelClass);
     }
 
     public CriteriaQuery getCriteriaQuery() {
         return cb.createTupleQuery();
     }
 
-    public Query getQuery(SearchNode searchNode, Class modelClass) {
-        qt = (CriteriaQuery<Tuple>) this.getCriteria(Tuple.class);
+    public List list(SearchNode searchNode, Class modelClass, String modelName) {
+        cb = em.getCriteriaBuilder();
+        qt = cb.createQuery(Tuple.class);
         Root root = qt.from(modelClass);
-        Path p = root.get("");
+        this.prepareSelectionList(modelName, root);
+        this.preparePredicateList(searchNode, root, null, null);
         qt.multiselect(selections);
         qt.where(cb.and(predicates.toArray(new Predicate[0])));
 
+        List<Tuple> resultList = em.createQuery(qt).getResultList();
 
-        return null;
+
+        return resultList;
     }
 
     public void preparePredicateList(SearchNode searchNode, Root root, Path path, Join uJoin) {
@@ -70,6 +78,12 @@ public class QueryBuilderImpl implements QueryBuilder {
                 predicates.add(this.cb.greaterThanOrEqualTo(path.get(searchProperty.getFieldName()), clazzz.cast(searchProperty.getValue())));
             } else if (searchProperty.getOpName().equals("lt")) {
                 predicates.add(this.cb.lessThanOrEqualTo(path.get(searchProperty.getFieldName()), clazzz.cast(searchProperty.getValue())));
+            } else if (searchProperty.getOpName().equals("%st")) {
+                predicates.add(this.cb.like(path.get(searchProperty.getFieldName()), (String) searchProperty.getValue() + "%"));
+            } else if (searchProperty.getOpName().equals("%en")) {
+                predicates.add(this.cb.like(path.get(searchProperty.getFieldName()), "%" + (String) searchProperty.getValue()));
+            } else if (searchProperty.getOpName().equals("%cn")) {
+                predicates.add(this.cb.like(path.get(searchProperty.getFieldName()), "%" + (String) searchProperty.getValue() + "%"));
             }
 
             if (!selections.contains(path.get(searchProperty.getFieldName()))) {
@@ -104,20 +118,18 @@ public class QueryBuilderImpl implements QueryBuilder {
 
     }
 
-    public void prepareSelectionList(SearchNode searchNode, Root root, Path path) {
-        if (path == null) {
-            path = root;
-        }
-        List<SearchProperty> searchPropertise = searchNode.getSearchProperties();
-        for (SearchProperty searchProperty : searchPropertise) {
-            selections.add(path.get(searchProperty.getFieldName()));
+    public void prepareSelectionList(String fileName, Root root) {
+
+        List<Map> schemaList = processMap.getSchemaMapFromFile(fileName);
+        for (Map schemaMap : schemaList) {
+            String fieldName = (String) schemaMap.get("fieldName");
+            Path path = root.get(fieldName);
+            if (selections.contains(path)) {
+                selections.add(path);
+            }
+
         }
 
-        List<SearchNode> childs = searchNode.getChildNodes();
-        for (SearchNode child : childs) {
-            Path childPath = path.get(child.nodeName);
-            //preparePredicateList(child, root, childPath);
-        }
     }
 
 

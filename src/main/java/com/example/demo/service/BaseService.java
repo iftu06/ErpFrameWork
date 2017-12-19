@@ -1,6 +1,8 @@
 package com.example.demo.service;
 
 import com.example.demo.UtilValidate;
+import com.example.demo.Utillity.ErrorObj;
+import com.example.demo.Validate.CustomValidate;
 import com.example.demo.model.Food;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,6 +10,7 @@ import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.springframework.beans.BeanWrapper;
 import org.springframework.beans.BeanWrapperImpl;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.validation.ObjectError;
 
@@ -21,10 +24,14 @@ import java.util.*;
  */
 public class BaseService {
 
+    @Autowired
+    CustomValidate customValidate;
+
     CrudRepository repository;
     private String modelName;
 
-    private final String packageName = "com.example.demo.model";
+    private final String modelPackageName = "com.example.demo.model";
+    private final String validatorPackage = "com.example.demo.Validate";
 
     Session session;
     @PersistenceContext
@@ -58,6 +65,9 @@ public class BaseService {
             for (Map reqMap : reqMapList) {
                 Map modelMap = (Map) reqMap.get(this.modelName);
                 bean = preparemodel(modelclass, modelMap);
+
+                customValidate.customValidate(this.getValidatorClassName(),bean.getWrappedInstance());
+
                 listOfModel.add(bean.getWrappedInstance());
                 this.saveBean(listOfModel);
             }
@@ -99,7 +109,7 @@ public class BaseService {
                 String type = modelMap.get(fieldName).getClass().getSimpleName();
                 if (type.equals("LinkedHashMap")) {
                     BeanWrapper innerBean = null;
-                    String fullClassName = this.packageName + "." + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1, fieldName.length());
+                    String fullClassName = this.modelPackageName + "." + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1, fieldName.length());
                     Class mClass = Class.forName(fullClassName);
                     innerBean = preparemodel(mClass, (Map) modelMap.get(field.getName()));
                     bean.setPropertyValue(fieldName, innerBean.getWrappedInstance());
@@ -108,7 +118,7 @@ public class BaseService {
                     List<Object> innerObject = new ArrayList<>();
                     for (Map innerMap : innerList) {
                         BeanWrapper innerBean = null;
-                        String fullClassName = this.packageName + "." + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1, fieldName.length() - 1);
+                        String fullClassName = this.modelPackageName + "." + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1, fieldName.length() - 1);
                         Class mClass = Class.forName(fullClassName);
                         innerBean = preparemodel(mClass, innerMap);
                         innerObject.add(innerBean.getWrappedInstance());
@@ -151,8 +161,9 @@ public class BaseService {
                 String fieldName = (String) entry.getKey();
                 String fieldVal = (String) entry.getValue();
                 Field f = modelClass.getDeclaredField(fieldName);
-                obj = convertFieldOrRaiseError(f.getType().getSimpleName(), fieldVal, errors);
-                if (obj instanceof ObjectError) {
+                //field cast validation
+                obj = castFieldOrRaiseTypeCastError(f.getType().getSimpleName(), fieldVal);
+                if (obj instanceof ErrorObj) {
                     errors.add(obj);
                 } else {
                     modelMap.put(fieldName, obj);
@@ -169,8 +180,15 @@ public class BaseService {
 
     }
 
-    public Object convertFieldOrRaiseError(String fieldType, String fieldVal, List errors) {
-        ObjectError error = null;
+    public Object customValidate(String fieldType, String fieldVal) throws NoSuchFieldException, ClassNotFoundException {
+
+        return castFieldOrRaiseTypeCastError(fieldType, fieldVal);
+
+    }
+
+    public Object castFieldOrRaiseTypeCastError(String fieldType, String fieldVal) throws ClassNotFoundException, NoSuchFieldException {
+
+        ErrorObj error = null;
         Object val = null;
         try {
             if (fieldType.equals("Integer")) {
@@ -183,15 +201,16 @@ public class BaseService {
                 val = fieldVal;
             }
         } catch (ClassCastException exp) {
-            error = new ObjectError(fieldType, "Value should be number");
+            error = new ErrorObj(fieldType, "Class Cast");
         } catch (NumberFormatException ex) {
-            error = new ObjectError(fieldType, "Value should be number");
+            error = new ErrorObj(fieldType, "Value should be number");
         } finally {
             if (error != null)
                 return error;
         }
 
         return val;
+
 
     }
 
@@ -211,10 +230,14 @@ public class BaseService {
     }
 
     public String getFullclassName() {
-        return packageName + "." + this.modelName;
+        return modelPackageName + "." + this.modelName;
     }
 
     public String getModelName() {
-        return this.getClass().getSimpleName();
+        return this.modelName;
+    }
+
+    public String getValidatorClassName() {
+        return this.validatorPackage+this.modelName;
     }
 }

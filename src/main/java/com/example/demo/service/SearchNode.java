@@ -10,7 +10,7 @@ import java.util.List;
 public class SearchNode {
 
     String nodeName;
-    public Join join;
+    Join join;
     List<SearchNode> childNodes = new ArrayList<>();
     List<SearchProperty> searchProperties = new ArrayList();
 

@@ -1,0 +1,26 @@
+[
+  {
+    "fieldName": "foodName",
+    "title": "Food Name",
+    "type": "String",
+    "display": "true",
+    "visbility": "true",
+    "renderer": "text"
+  },
+  {
+    "fieldName": "description",
+    "title": "Description",
+    "type": "String",
+    "display": "true",
+    "visbility": "true",
+    "renderer": "text"
+  },
+  {
+    "fieldName": "rating",
+    "Rating": "Integer",
+    "type": "String",
+    "display": "true",
+    "visbility": "true",
+    "renderer": "text"
+  }
+]

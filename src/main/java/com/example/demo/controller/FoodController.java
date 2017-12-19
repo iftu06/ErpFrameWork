@@ -1,20 +1,16 @@
 package com.example.demo.controller;
 
-import com.example.demo.Utillity.ProcessMap;
-import com.example.demo.service.FoodService;
+import com.example.demo.service.*;
 import com.example.demo.model.Food;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
-import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
 
-import javax.naming.Binding;
-import javax.servlet.http.HttpServletRequest;
+import javax.persistence.Tuple;
 import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +22,12 @@ public class FoodController {
 
     @Autowired
     FoodService foodService;
+
+    @Autowired
+    ProcessMap processMap;
+
+    @Autowired
+    QueryBuilder qb;
 
     @RequestMapping("/food")
     public String foodView() {
@@ -45,11 +47,15 @@ public class FoodController {
     public ResponseEntity<List<Food>> getFoods(@RequestParam String params, HttpServletResponse resp) throws Exception {
 
         Map queryMap = ProcessMap.convertStringToMap(params);
-        ProcessMap.prepareSearchMap(queryMap);
+        SearchNode searchNode = ProcessMap.prepareSearchMap(queryMap);
+        List<Tuple> list = qb.list(searchNode, foodService.getModelClass(), foodService.getModelName());
+
         List<Food> foods = foodService.get();
         if (foods.isEmpty()) {
             return new ResponseEntity(HttpStatus.NO_CONTENT);
         }
         return new ResponseEntity<List<Food>>(foods, HttpStatus.OK);
     }
+
+
 }

@@ -1,0 +1,14 @@
+[
+  {
+    "fieldName":"foodName",
+    "type":"String",
+    "display" : "true",
+    "visbility" : "true"
+  },
+  {
+    "fieldName":"description",
+    "type":"String",
+    "display" : "true",
+    "visbility" : "true"
+  }
+]
