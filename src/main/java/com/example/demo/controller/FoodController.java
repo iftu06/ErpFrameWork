@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.Utillity.ProcessMap;
 import com.example.demo.service.*;
 import com.example.demo.model.Food;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -36,25 +37,35 @@ public class FoodController {
 
     @CrossOrigin
     @RequestMapping(value = "/foods", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
-    public void saveFood(@RequestBody String payload, HttpServletResponse resp, BindingResult res) throws JsonProcessingException, ClassNotFoundException {
+    public Object saveFood(@RequestBody String payload, HttpServletResponse resp, BindingResult res) throws Exception {
+        List<Map> reqMap = foodService.validateTypeCast(payload);
+        if (foodService.isModelContainError()) {
+            return reqMap;
+        }
+        List listOfBean = foodService.validateBean(reqMap);
 
-        List<Map> reqMap = foodService.validateModel(payload);
-        foodService.save(reqMap);
+        if (foodService.isModelContainError()) {
+            return listOfBean;
+        } else {
+            foodService.saveBean(listOfBean);
+            return this.getFoods("", resp);
+        }
     }
 
     @CrossOrigin
     @RequestMapping(value = "/foods", method = RequestMethod.GET)
-    public ResponseEntity<List<Food>> getFoods(@RequestParam String params, HttpServletResponse resp) throws Exception {
+    public Object getFoods(@RequestParam String params, HttpServletResponse resp) throws Exception {
 
+        SearchNode searchNode = null;
         Map queryMap = ProcessMap.convertStringToMap(params);
-        SearchNode searchNode = ProcessMap.prepareSearchMap(queryMap);
-        List<Tuple> list = qb.list(searchNode, foodService.getModelClass(), foodService.getModelName());
-
-        List<Food> foods = foodService.get();
-        if (foods.isEmpty()) {
+        if (!queryMap.isEmpty()) {
+            searchNode = ProcessMap.prepareSearchMap(queryMap);
+        }
+        List<Map> list = qb.list(searchNode, foodService.getModelClass(), foodService.getModelName());
+        if (list.isEmpty()) {
             return new ResponseEntity(HttpStatus.NO_CONTENT);
         }
-        return new ResponseEntity<List<Food>>(foods, HttpStatus.OK);
+        return list;
     }
 
 

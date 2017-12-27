@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.Path;
 import javax.persistence.criteria.Root;
@@ -12,5 +14,5 @@ public interface QueryBuilder {
 
     public void prepareSelectionList(String fileName, Root root);
     public void preparePredicateList(SearchNode searchNode, Root root, Path path,Join join);
-    public List list(SearchNode searchNode, Class modelClass, String modelName);
+    public List list(SearchNode searchNode, Class modelClass, String modelName) throws JsonProcessingException;
 }

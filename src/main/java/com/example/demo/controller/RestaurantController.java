@@ -29,8 +29,10 @@ public class RestaurantController {
     @RequestMapping(value = "/restaurants", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
     public void saveFood(@RequestBody String payload, HttpServletResponse resp, BindingResult res) throws JsonProcessingException, ClassNotFoundException {
 
-        List reqMap = restaurantService.validateModel(payload);
-        restaurantService.save(reqMap);
+        List reqMap = restaurantService.validateTypeCast(payload);
+        List listOfBean = restaurantService.validateBean(reqMap);
+
+        restaurantService.saveBean(listOfBean);
     }
 
     @CrossOrigin

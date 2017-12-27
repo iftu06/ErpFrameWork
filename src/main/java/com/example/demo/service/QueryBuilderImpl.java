@@ -1,5 +1,9 @@
 package com.example.demo.service;
 
+import com.example.demo.UtilValidate;
+import com.example.demo.Utillity.ProcessMap;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hibernate.Criteria;
 import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,10 +33,12 @@ public class QueryBuilderImpl implements QueryBuilder {
     CriteriaQuery qt;
 
     @Autowired
-    ProcessMap processMap ;
+    ProcessMap processMap;
 
     List<Predicate> predicates = new ArrayList<>();
     List<Selection<?>> selections = new ArrayList<>();
+    List<String> fields = new ArrayList<>();
+    private String aliasConcatenate = "";
 
     public QueryBuilderImpl() {
 
@@ -47,22 +53,33 @@ public class QueryBuilderImpl implements QueryBuilder {
         return cb.createTupleQuery();
     }
 
-    public List list(SearchNode searchNode, Class modelClass, String modelName) {
+    public List list(SearchNode searchNode, Class modelClass, String modelName) throws JsonProcessingException {
         cb = em.getCriteriaBuilder();
         qt = cb.createQuery(Tuple.class);
         Root root = qt.from(modelClass);
         this.prepareSelectionList(modelName, root);
-        this.preparePredicateList(searchNode, root, null, null);
         qt.multiselect(selections);
-        qt.where(cb.and(predicates.toArray(new Predicate[0])));
+        if (!UtilValidate.isEmpty(searchNode)) {
+            this.preparePredicateList(searchNode, root, null, null);
+            qt.where(cb.and(predicates.toArray(new Predicate[0])));
+        }
 
-        List<Tuple> resultList = em.createQuery(qt).getResultList();
+        List<Tuple> tuples = em.createQuery(qt).getResultList();
+        List<Map<String,Object>> result = new ArrayList();
 
 
-        return resultList;
+        if(!tuples.isEmpty()){
+            result = prepareResultMap(tuples);
+        }
+        this.selections.clear();
+        this.predicates.clear();
+        this.fields.clear();
+
+        return result;
     }
 
     public void preparePredicateList(SearchNode searchNode, Root root, Path path, Join uJoin) {
+
         if (path == null) {
             path = root;
         }
@@ -87,7 +104,8 @@ public class QueryBuilderImpl implements QueryBuilder {
             }
 
             if (!selections.contains(path.get(searchProperty.getFieldName()))) {
-                selections.add(path.get(searchProperty.getFieldName()));
+                String aliasName = searchProperty.getAliasName();
+                selections.add(path.get(searchProperty.getFieldName()).alias(aliasName));
             }
 
         }
@@ -123,14 +141,40 @@ public class QueryBuilderImpl implements QueryBuilder {
         List<Map> schemaList = processMap.getSchemaMapFromFile(fileName);
         for (Map schemaMap : schemaList) {
             String fieldName = (String) schemaMap.get("fieldName");
+            fields.add(fieldName);
             Path path = root.get(fieldName);
-            if (selections.contains(path)) {
-                selections.add(path);
+            if (!selections.contains(path)) {
+                selections.add(path.alias(fieldName));
             }
 
         }
 
     }
+
+    public List<Map<String,Object>> prepareResultMap (List<Tuple> resultList){
+
+        List<Map<String,Object>> results= new ArrayList<Map<String,Object>>();
+        Map<String,Object> rowMap = new HashMap<String,Object>();
+        for(Tuple tuple:resultList){
+            for(String field : fields){
+                Object tupleVal = tuple.get(field);
+                rowMap.put(field,tupleVal);
+            }
+            results.add(rowMap);
+            rowMap = new HashMap<String,Object>();
+
+        }
+
+        return results;
+    }
+
+//    public Map prepareNestedMap(String field,Object val){
+//        String arr[] = field.split("_");
+//        Map map = new HashMap();
+//        for(String a : arr){
+//
+//        }
+//    }
 
 
 }

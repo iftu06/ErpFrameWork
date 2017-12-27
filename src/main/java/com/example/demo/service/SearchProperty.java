@@ -8,6 +8,7 @@ public class SearchProperty {
     private String fieldName;
     private String opName;
     private Object value;
+    private String aliasName;
 
     public String getFieldName() {
         return fieldName;
@@ -31,5 +32,13 @@ public class SearchProperty {
 
     public void setValue(Object value) {
         this.value = value;
+    }
+
+    public String getAliasName() {
+        return aliasName;
+    }
+
+    public void setAliasName(String aliasName) {
+        this.aliasName = aliasName;
     }
 }

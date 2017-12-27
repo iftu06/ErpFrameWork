@@ -33,6 +33,8 @@ public class BaseService {
     private final String modelPackageName = "com.example.demo.model";
     private final String validatorPackage = "com.example.demo.Validate";
 
+    private boolean modelContainError = false;
+
     Session session;
     @PersistenceContext
     EntityManager em;
@@ -56,25 +58,34 @@ public class BaseService {
 
     }
 
-    public void save(List<Map> reqMapList) throws ClassNotFoundException {
-        BeanWrapper bean = null;
+    public List validateBean(List<Map> reqMapList) throws ClassNotFoundException {
+        BeanWrapper beanWrapper = null;
         ObjectMapper mapper = new ObjectMapper();
         List<Object> listOfModel = new ArrayList<>();
         Class modelclass = this.getModelClass();
         try {
             for (Map reqMap : reqMapList) {
                 Map modelMap = (Map) reqMap.get(this.modelName);
-                bean = preparemodel(modelclass, modelMap);
+                beanWrapper = preparemodel(modelclass, modelMap);
+                Object bean = beanWrapper.getWrappedInstance();
+                List <ErrorObj> errors = customValidate.customValidate(this.getModelName(),bean,this.getCustomValidator());
+                if(errors.isEmpty()) {
+                    listOfModel.add(bean);
+                }else{
+                    modelMap.put("errors",errors);
+                    setModelContainError(true);
 
-                customValidate.customValidate(this.getValidatorClassName(),bean.getWrappedInstance());
-
-                listOfModel.add(bean.getWrappedInstance());
-                this.saveBean(listOfModel);
+                }
             }
         } catch (Exception ex) {
-
             ex.printStackTrace();
         }
+
+        if(this.isModelContainError()){
+            return reqMapList;
+        }
+
+        return listOfModel;
     }
 
     private static Field getField(Class clazz, String fieldName)
@@ -133,14 +144,14 @@ public class BaseService {
         return bean;
     }
 
-    public List validateModel(String requestData) throws JsonProcessingException {
+    public List validateTypeCast(String requestData) throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
         List<Map> reqMapList = new ArrayList<>();
         try {
             reqMapList = mapper.readValue(requestData, List.class);
             for (Map reqMap : reqMapList) {
                 Map modelMap = (Map) reqMap.get(this.modelName);
-                validateModel(modelMap);
+                validateTypeCast(modelMap);
             }
         } catch (Exception ex) {
 
@@ -148,7 +159,7 @@ public class BaseService {
         return reqMapList;
     }
 
-    public void validateModel(Map modelMap) throws ClassNotFoundException, NoSuchFieldException {
+    public void validateTypeCast(Map modelMap) throws ClassNotFoundException, NoSuchFieldException {
         Object obj = null;
         List errors = new ArrayList();
         Class modelClass = null;
@@ -171,6 +182,7 @@ public class BaseService {
             }
             if (errors.size() > 0) {
                 modelMap.put("errors", errors);
+                this.setModelContainError(true);
             }
         } catch (ClassNotFoundException exp) {
             throw exp;
@@ -237,7 +249,15 @@ public class BaseService {
         return this.modelName;
     }
 
-    public String getValidatorClassName() {
-        return this.validatorPackage+this.modelName;
+    public String getCustomValidator() {
+        return this.validatorPackage+"."+this.modelName;
+    }
+
+    public boolean isModelContainError() {
+        return modelContainError;
+    }
+
+    public void setModelContainError(boolean modelContainError) {
+        this.modelContainError = modelContainError;
     }
 }
